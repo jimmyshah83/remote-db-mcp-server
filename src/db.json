@@ -1,0 +1,292 @@
+[
+  {
+    "id": "prod-001",
+    "name": "MacBook Pro 16-inch",
+    "category": "Electronics",
+    "subcategory": "Laptops",
+    "brand": "Apple",
+    "description": "16-inch MacBook Pro with M2 Pro chip, 16GB unified memory, 512GB SSD storage",
+    "price": 2499.99,
+    "currency": "USD",
+    "sku": "MBP16-M2-512",
+    "inStock": true,
+    "stockQuantity": 45,
+    "tags": ["laptop", "macbook", "apple", "m2", "professional"],
+    "specifications": {
+      "processor": "M2 Pro",
+      "memory": "16GB",
+      "storage": "512GB SSD",
+      "display": "16-inch Liquid Retina XDR display",
+      "weight": "4.7 pounds"
+    },
+    "images": [
+      "https://example.com/images/macbook-pro-16-1.jpg",
+      "https://example.com/images/macbook-pro-16-2.jpg"
+    ],
+    "rating": 4.8,
+    "reviewCount": 127,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-03-20T14:45:00Z"
+  },
+  {
+    "id": "prod-002",
+    "name": "Sony WH-1000XM5 Wireless Headphones",
+    "category": "Electronics",
+    "subcategory": "Audio",
+    "brand": "Sony",
+    "description": "Industry-leading noise canceling wireless headphones with 30-hour battery life",
+    "price": 399.99,
+    "currency": "USD",
+    "sku": "SONY-WH1000XM5",
+    "inStock": true,
+    "stockQuantity": 23,
+    "tags": ["headphones", "wireless", "noise-canceling", "bluetooth", "audio"],
+    "specifications": {
+      "batteryLife": "30 hours",
+      "noiseCancellation": "Yes",
+      "bluetooth": "5.2",
+      "weight": "250g",
+      "foldable": true
+    },
+    "images": [
+      "https://example.com/images/sony-wh1000xm5-1.jpg"
+    ],
+    "rating": 4.9,
+    "reviewCount": 89,
+    "createdAt": "2024-02-10T09:15:00Z",
+    "updatedAt": "2024-03-18T16:20:00Z"
+  },
+  {
+    "id": "prod-003",
+    "name": "Nike Air Max 270",
+    "category": "Clothing",
+    "subcategory": "Shoes",
+    "brand": "Nike",
+    "description": "Comfortable running shoes with Air Max 270 unit for all-day comfort",
+    "price": 150.00,
+    "currency": "USD",
+    "sku": "NIKE-AIRMAX270-BLK",
+    "inStock": true,
+    "stockQuantity": 67,
+    "tags": ["shoes", "running", "nike", "air-max", "comfortable"],
+    "specifications": {
+      "material": "Mesh and synthetic",
+      "sole": "Rubber",
+      "closure": "Lace-up",
+      "weight": "320g",
+      "colors": ["Black", "White", "Red"]
+    },
+    "images": [
+      "https://example.com/images/nike-airmax270-1.jpg",
+      "https://example.com/images/nike-airmax270-2.jpg"
+    ],
+    "rating": 4.6,
+    "reviewCount": 234,
+    "createdAt": "2024-01-20T11:45:00Z",
+    "updatedAt": "2024-03-19T12:30:00Z"
+  },
+  {
+    "id": "prod-004",
+    "name": "Instant Pot Duo 7-in-1",
+    "category": "Home & Kitchen",
+    "subcategory": "Kitchen Appliances",
+    "brand": "Instant Pot",
+    "description": "7-in-1 electric pressure cooker, slow cooker, rice cooker, steamer, sauté pan, yogurt maker, and warmer",
+    "price": 89.99,
+    "currency": "USD",
+    "sku": "INSTANT-DUO-6QT",
+    "inStock": false,
+    "stockQuantity": 0,
+    "tags": ["pressure-cooker", "slow-cooker", "kitchen", "cooking", "appliance"],
+    "specifications": {
+      "capacity": "6 quarts",
+      "power": "1000W",
+      "programs": 7,
+      "material": "Stainless steel",
+      "dimensions": "13.4 x 12.2 x 12.5 inches"
+    },
+    "images": [
+      "https://example.com/images/instant-pot-duo-1.jpg"
+    ],
+    "rating": 4.7,
+    "reviewCount": 1567,
+    "createdAt": "2024-01-05T08:20:00Z",
+    "updatedAt": "2024-03-15T10:10:00Z"
+  },
+  {
+    "id": "prod-005",
+    "name": "Kindle Paperwhite",
+    "category": "Electronics",
+    "subcategory": "E-readers",
+    "brand": "Amazon",
+    "description": "8GB, 6.8-inch display, adjustable warm light, waterproof, 10-week battery life",
+    "price": 139.99,
+    "currency": "USD",
+    "sku": "KINDLE-PW-8GB",
+    "inStock": true,
+    "stockQuantity": 34,
+    "tags": ["kindle", "e-reader", "amazon", "books", "waterproof"],
+    "specifications": {
+      "storage": "8GB",
+      "display": "6.8-inch Paperwhite display",
+      "resolution": "300 ppi",
+      "batteryLife": "10 weeks",
+      "waterproof": true,
+      "weight": "205g"
+    },
+    "images": [
+      "https://example.com/images/kindle-paperwhite-1.jpg"
+    ],
+    "rating": 4.5,
+    "reviewCount": 892,
+    "createdAt": "2024-02-25T13:40:00Z",
+    "updatedAt": "2024-03-22T09:15:00Z"
+  },
+  {
+    "id": "prod-006",
+    "name": "Levi's 501 Original Jeans",
+    "category": "Clothing",
+    "subcategory": "Pants",
+    "brand": "Levi's",
+    "description": "Classic straight leg jeans with original button fly and timeless fit",
+    "price": 69.50,
+    "currency": "USD",
+    "sku": "LEVIS-501-32-32",
+    "inStock": true,
+    "stockQuantity": 89,
+    "tags": ["jeans", "levis", "denim", "classic", "straight-leg"],
+    "specifications": {
+      "material": "100% cotton denim",
+      "fit": "Straight leg",
+      "rise": "Mid-rise",
+      "closure": "Button fly",
+      "sizes": ["28x30", "30x30", "32x32", "34x32", "36x32"]
+    },
+    "images": [
+      "https://example.com/images/levis-501-1.jpg",
+      "https://example.com/images/levis-501-2.jpg"
+    ],
+    "rating": 4.4,
+    "reviewCount": 445,
+    "createdAt": "2024-01-12T15:30:00Z",
+    "updatedAt": "2024-03-21T11:25:00Z"
+  },
+  {
+    "id": "prod-007",
+    "name": "Dyson V15 Detect Absolute",
+    "category": "Home & Kitchen",
+    "subcategory": "Cleaning",
+    "brand": "Dyson",
+    "description": "Cord-free vacuum with laser dust detection, 60-minute runtime, and HEPA filtration",
+    "price": 749.99,
+    "currency": "USD",
+    "sku": "DYSON-V15-ABSOLUTE",
+    "inStock": true,
+    "stockQuantity": 12,
+    "tags": ["vacuum", "dyson", "cordless", "hepa", "cleaning"],
+    "specifications": {
+      "runtime": "60 minutes",
+      "suction": "240 AW",
+      "filtration": "HEPA",
+      "weight": "2.6kg",
+      "binCapacity": "0.76L",
+      "accessories": 5
+    },
+    "images": [
+      "https://example.com/images/dyson-v15-1.jpg",
+      "https://example.com/images/dyson-v15-2.jpg"
+    ],
+    "rating": 4.8,
+    "reviewCount": 234,
+    "createdAt": "2024-02-18T10:15:00Z",
+    "updatedAt": "2024-03-20T14:30:00Z"
+  },
+  {
+    "id": "prod-008",
+    "name": "Samsung 65-inch QLED 4K TV",
+    "category": "Electronics",
+    "subcategory": "TVs",
+    "brand": "Samsung",
+    "description": "65-inch QLED 4K UHD Smart TV with Quantum HDR and Alexa Built-in",
+    "price": 1299.99,
+    "currency": "USD",
+    "sku": "SAMSUNG-QN65Q80B",
+    "inStock": true,
+    "stockQuantity": 8,
+    "tags": ["tv", "4k", "qled", "samsung", "smart-tv"],
+    "specifications": {
+      "screenSize": "65 inches",
+      "resolution": "4K UHD (3840 x 2160)",
+      "displayType": "QLED",
+      "hdr": "Quantum HDR",
+      "smartFeatures": ["Alexa", "Bixby", "Apple AirPlay 2"],
+      "ports": ["4 HDMI", "2 USB", "1 Ethernet"]
+    },
+    "images": [
+      "https://example.com/images/samsung-qled-65-1.jpg"
+    ],
+    "rating": 4.6,
+    "reviewCount": 156,
+    "createdAt": "2024-01-30T12:00:00Z",
+    "updatedAt": "2024-03-19T16:45:00Z"
+  },
+  {
+    "id": "prod-009",
+    "name": "Yeti Rambler 20oz Tumbler",
+    "category": "Home & Kitchen",
+    "subcategory": "Drinkware",
+    "brand": "Yeti",
+    "description": "Vacuum insulated stainless steel tumbler keeps drinks cold for 24 hours or hot for 12 hours",
+    "price": 29.99,
+    "currency": "USD",
+    "sku": "YETI-RAMBLER-20OZ",
+    "inStock": true,
+    "stockQuantity": 156,
+    "tags": ["tumbler", "insulated", "stainless-steel", "yeti", "drinkware"],
+    "specifications": {
+      "capacity": "20 oz",
+      "material": "Stainless steel",
+      "insulation": "Vacuum insulated",
+      "coldRetention": "24 hours",
+      "hotRetention": "12 hours",
+      "colors": ["Stainless", "Black", "Navy", "Seafoam"]
+    },
+    "images": [
+      "https://example.com/images/yeti-rambler-1.jpg"
+    ],
+    "rating": 4.9,
+    "reviewCount": 2341,
+    "createdAt": "2024-02-05T09:30:00Z",
+    "updatedAt": "2024-03-22T13:20:00Z"
+  },
+  {
+    "id": "prod-010",
+    "name": "Adidas Ultraboost 22",
+    "category": "Clothing",
+    "subcategory": "Shoes",
+    "brand": "Adidas",
+    "description": "Premium running shoes with responsive Boost midsole and Primeknit upper",
+    "price": 190.00,
+    "currency": "USD",
+    "sku": "ADIDAS-ULTRABOOST22",
+    "inStock": true,
+    "stockQuantity": 42,
+    "tags": ["running-shoes", "adidas", "ultraboost", "boost", "primeknit"],
+    "specifications": {
+      "material": "Primeknit upper",
+      "midsole": "Boost",
+      "outsole": "Continental rubber",
+      "weight": "310g",
+      "drop": "10mm",
+      "colors": ["Core Black", "Cloud White", "Solar Red"]
+    },
+    "images": [
+      "https://example.com/images/adidas-ultraboost-1.jpg",
+      "https://example.com/images/adidas-ultraboost-2.jpg"
+    ],
+    "rating": 4.7,
+    "reviewCount": 678,
+    "createdAt": "2024-01-25T14:20:00Z",
+    "updatedAt": "2024-03-21T10:15:00Z"
+  }
+]
