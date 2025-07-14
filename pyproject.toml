@@ -8,11 +8,14 @@ dependencies = [
     "azure-identity",
     "python-dotenv",
     "httpx",
-    "mcp[cli]",
+    "mcp",
     "langchain-openai",
     "langgraph",
     "langchain-core",
     "langchain-mcp-adapters",
+    "debugpy",
+    "fastapi",
+    "uvicorn[standard]",
 ]
 
 [project.scripts]

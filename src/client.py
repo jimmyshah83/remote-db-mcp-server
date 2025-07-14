@@ -1,30 +1,51 @@
 """LangChain-powered MCP client with Azure OpenAI and ReAct agent integration."""
 
 import asyncio
-import os
 import logging
-from typing import List
+import os
+from typing import List, cast
 from contextlib import AsyncExitStack
 
-from langchain_mcp_adapters.client import MultiServerMCPClient
-
-from langchain_openai import AzureChatOpenAI
-from langchain_core.tools import BaseTool, tool
-from langchain_core.messages import AIMessage
-from langgraph.prebuilt import create_react_agent
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage
+from langchain_core.tools import BaseTool, tool
+from langchain_core.runnables import RunnableConfig
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.sessions import StdioConnection
+from langchain_openai import AzureChatOpenAI
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.prebuilt import create_react_agent
 
-load_dotenv() # load environment variables from .env
+load_dotenv()
 
-# Set up logging
-logger = logging.getLogger(__name__)
+memory = MemorySaver()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger("cosmos_mcp_client")
 
 class MCPClient:
 	"""LangChain-powered MCP client with Azure OpenAI and ReAct agent integration."""
 
 	def __init__(self):
-		# Initialize MultiServerMCPClient
-		self.mcp_client = MultiServerMCPClient()
+		# Initialize MultiServerMCPClient with StdioConnection
+		self.mcp_client = MultiServerMCPClient(
+			{
+				"local": StdioConnection(
+					transport="stdio",
+					command="python3",
+					args=["src/server.py"],
+					env=None,
+					cwd=None,
+					encoding="utf-8",
+					encoding_error_handler="strict",
+					session_kwargs=None
+				)
+			}
+		)
 		self.exit_stack = AsyncExitStack()
 
 		# Initialize Azure OpenAI
@@ -38,25 +59,21 @@ class MCPClient:
 		self.agent = None
 		
 		# System instruction for the agent
-		self.SYSTEM_INSTRUCTION = """You are a helpful AI assistant that can interact with various tools and services through the Model Context Protocol (MCP). 
-		Use the available tools to help users with their requests. Always provide clear and helpful responses."""
-
-	async def connect_to_server(self, server_script_path: str):
-		"""Connect to an MCP server
-		
-		Args:
-		    server_script_path: Path to the server script (.py or .js)
+		self.system_instruction = """You are a helpful AI assistant that can interact with various tools and services. Use the available tools to help users with their requests. Always provide clear and helpful responses.
+		You have the following tools available:
+		{tools}
 		"""
-		# Add the server to the MultiServerMCPClient
-		await self.mcp_client.add_server(server_script_path)
-		
+
+	async def connect_to_server(self):
+		"""Connect to the MCP server
+		"""
 		# Get the tools from the MCP client
 		self.tools = await self.mcp_client.get_tools()
 
 		# Create ReAct agent using the new tooling logic
 		self.agent = await self._create_azure_mcp_agent()
 
-		print("\nConnected to server with tools:", [tool.name for tool in self.tools])
+		print("\nConnected to server with tools:", [tool.name + ": " + tool.description for tool in self.tools])
 
 	async def get_tools(self) -> List[BaseTool]:
 		"""Get the available MCP tools"""
@@ -78,7 +95,7 @@ class MCPClient:
 			@tool()
 			async def sync_tool(input_text: str, mcp_tool=mcp_tool):
 				"""Execute the MCP tool with the given input."""
-				result = asyncio.run(mcp_tool.ainvoke({"input": input_text}))
+				result = await mcp_tool.ainvoke({"input": input_text})
 				return str(result)
 
 			sync_tools.append(sync_tool)
@@ -86,7 +103,7 @@ class MCPClient:
 		azure_mcp_agent = create_react_agent(
 			self.llm,
 			tools=sync_tools,
-			prompt=self.SYSTEM_INSTRUCTION,
+			prompt=self.system_instruction,
 		)
 		return azure_mcp_agent
 
@@ -97,8 +114,11 @@ class MCPClient:
 
 		try:
 			# Run the agent with the new message format
+			context_id = "demo-thread-1"
+			config = cast(RunnableConfig, {'configurable': {'thread_id': context_id}})
 			result = await self.agent.ainvoke(
-				{"messages": [("user", query)]}
+				{"messages": [("user", query)]},
+				config=config
 			)
 
 			# Extract the final response
@@ -148,9 +168,9 @@ async def main():
 	"""Main function to run the MCP client"""
 	client = MCPClient()
 	try:
-		await client.connect_to_server("src/server.py") # TODO: make this a command line argument
+		await client.connect_to_server()
 		await client.chat_loop()
-	finally:
+	finally:	
 		await client.cleanup()
 
 if __name__ == "__main__":
