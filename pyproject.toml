@@ -9,6 +9,9 @@ dependencies = [
     "python-dotenv",
     "httpx",
     "mcp[cli]",
+    "langchain-openai",
+    "langgraph",
+    "langchain-core",
 ]
 
 [project.scripts]
