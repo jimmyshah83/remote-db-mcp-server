@@ -3,9 +3,10 @@
 import json
 import os
 from typing import List, Dict, Any
+
 from azure.cosmos import CosmosClient, PartitionKey
-from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential, ClientSecretCredential
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()

@@ -14,7 +14,116 @@ This guide will help you insert the test product JSON documents into your Azure 
 3. Go to **Keys** in the left sidebar
 4. Copy the **URI** (endpoint) and **PRIMARY KEY**
 
-## Step 2: Set Up Environment Variables
+## Step 2: Configure Role Assignments (Required for Service Principal Authentication)
+
+Before setting up environment variables, you need to configure proper role assignments for your Cosmos DB account. This is especially important when using service principal authentication.
+
+### 2.1: Create a Service Principal (if not already created)
+
+If you don't have a service principal, create one:
+
+```bash
+# Create service principal
+az ad sp create-for-rbac --name "cosmos-db-service-principal" --skip-assignment
+
+# This will output something like:
+# {
+#   "appId": "your-client-id",
+#   "displayName": "cosmos-db-service-principal",
+#   "name": "http://cosmos-db-service-principal",
+#   "password": "your-client-secret",
+#   "tenant": "your-tenant-id"
+# }
+```
+
+### 2.2: Assign Cosmos DB Roles
+
+Assign the appropriate roles to your service principal:
+
+```bash
+# Get your Cosmos DB account resource ID
+COSMOS_ACCOUNT_ID=$(az cosmosdb show --name YOUR_COSMOS_ACCOUNT_NAME --resource-group YOUR_RESOURCE_GROUP --query id -o tsv)
+
+# Get your service principal object ID
+SP_OBJECT_ID=$(az ad sp show --id YOUR_CLIENT_ID --query id -o tsv)
+
+# Assign Cosmos DB Built-in Data Contributor role
+az role assignment create \
+    --assignee $SP_OBJECT_ID \
+    --role "Cosmos DB Built-in Data Contributor" \
+    --scope $COSMOS_ACCOUNT_ID
+
+# Alternative: Assign Cosmos DB Built-in Data Reader role (read-only access)
+# az role assignment create \
+#     --assignee $SP_OBJECT_ID \
+#     --role "Cosmos DB Built-in Data Reader" \
+#     --scope $COSMOS_ACCOUNT_ID
+```
+
+### 2.3: Available Cosmos DB Built-in Roles
+
+| Role | Permissions | Use Case |
+|------|-------------|----------|
+| **Cosmos DB Built-in Data Contributor** | Full read/write access to data | Applications that need to insert, update, delete data |
+| **Cosmos DB Built-in Data Reader** | Read-only access to data | Reporting, analytics, read-only applications |
+| **Cosmos DB Built-in Data AEM** | Read/write access with AEM (Azure Event Mesh) | Event-driven applications |
+| **Cosmos DB Built-in Data Backup Administrator** | Backup and restore operations | Backup management |
+| **Cosmos DB Built-in Data Operator** | Read/write access without schema changes | Limited data operations |
+
+### 2.4: Custom Role Definitions (Advanced)
+
+For more granular control, you can create custom roles:
+
+```bash
+# Create custom role definition JSON
+cat > cosmos-custom-role.json << EOF
+{
+  "Name": "Cosmos Custom Data Operator",
+  "Description": "Custom role for specific data operations",
+  "Actions": [
+    "Microsoft.DocumentDB/databaseAccounts/read",
+    "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/read",
+    "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/read",
+    "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/read",
+    "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/write"
+  ],
+  "NotActions": [],
+  "DataActions": [
+    "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/*"
+  ],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/YOUR_SUBSCRIPTION_ID/resourceGroups/YOUR_RESOURCE_GROUP/providers/Microsoft.DocumentDB/databaseAccounts/YOUR_COSMOS_ACCOUNT_NAME"
+  ]
+}
+EOF
+
+# Create the custom role
+az role definition create --role-definition cosmos-custom-role.json
+
+# Assign the custom role
+az role assignment create \
+    --assignee $SP_OBJECT_ID \
+    --role "Cosmos Custom Data Operator" \
+    --scope $COSMOS_ACCOUNT_ID
+```
+
+### 2.5: Verify Role Assignments
+
+Check that your role assignments are working:
+
+```bash
+# List role assignments for your service principal
+az role assignment list --assignee YOUR_CLIENT_ID --scope $COSMOS_ACCOUNT_ID
+
+# Test authentication (optional)
+az cosmosdb sql database list \
+    --account-name YOUR_COSMOS_ACCOUNT_NAME \
+    --resource-group YOUR_RESOURCE_GROUP \
+    --auth-type aad
+```
+
+## Step 3: Set Up Environment Variables
 
 Create a `.env` file in your project root with the following variables:
 
@@ -63,7 +172,7 @@ az login
 
 **Replace the placeholder values with your actual Cosmos DB connection details.**
 
-## Step 3: Install Dependencies
+## Step 4: Install Dependencies
 
 Make sure you have the required dependencies installed:
 
@@ -77,7 +186,7 @@ Or if you're using uv:
 uv sync
 ```
 
-## Step 4: Insert Products into Cosmos DB
+## Step 5: Insert Products into Cosmos DB
 
 Run the insertion script:
 
@@ -136,6 +245,18 @@ Products over $1000: 3
 2. **Permission Error**:
    - Make sure you're using the **PRIMARY KEY** (not the secondary key)
    - Verify your account has the necessary permissions
+   - For service principal authentication, ensure proper role assignments are configured
+
+3. **Role Assignment Issues**:
+   - Verify the service principal has the correct Cosmos DB roles assigned
+   - Check that the role assignment scope includes your Cosmos DB account
+   - Ensure the service principal credentials are correct in your `.env` file
+   - Run `az role assignment list --assignee YOUR_CLIENT_ID` to verify assignments
+
+4. **Authentication Errors**:
+   - For service principal: Check `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, and `AZURE_TENANT_ID`
+   - For AAD: Ensure you're logged in with `az login`
+   - Verify the service principal hasn't expired or been deleted
 
 3. **Container Already Exists**:
    - The script will use the existing container if it exists
@@ -165,10 +286,43 @@ SELECT * FROM c WHERE c.inStock = true
 SELECT * FROM c WHERE c.rating >= 4.5
 ```
 
+## Security Best Practices
+
+### Role Assignment Security
+
+1. **Principle of Least Privilege**: Only assign the minimum permissions necessary
+   - Use `Cosmos DB Built-in Data Reader` for read-only access
+   - Use `Cosmos DB Built-in Data Contributor` only when write access is needed
+
+2. **Scope Limitation**: Assign roles at the most specific scope possible
+   - Prefer database-level or container-level scopes over account-level
+   - Use resource group scope only when necessary
+
+3. **Regular Auditing**: Periodically review role assignments
+   ```bash
+   # List all role assignments for your Cosmos DB account
+   az role assignment list --scope $COSMOS_ACCOUNT_ID
+   
+   # Remove unnecessary assignments
+   az role assignment delete --assignee SP_OBJECT_ID --role "Role Name" --scope $COSMOS_ACCOUNT_ID
+   ```
+
+4. **Service Principal Management**:
+   - Rotate service principal secrets regularly
+   - Use managed identities when possible (for Azure-hosted applications)
+   - Monitor service principal usage in Azure AD
+
+### Network Security
+
+1. **IP Restrictions**: Configure IP allowlists in Cosmos DB
+2. **Private Endpoints**: Use private endpoints for secure connectivity
+3. **VNet Integration**: Configure virtual network integration when possible
+
 ## Next Steps
 
 Once your products are inserted, you can:
 1. Use the Azure Portal to explore your data
 2. Build queries in the Data Explorer
 3. Integrate with your application using the Cosmos DB SDK
-4. Set up additional indexes for better query performance 
+4. Set up additional indexes for better query performance
+5. Implement monitoring and alerting for your Cosmos DB account 
