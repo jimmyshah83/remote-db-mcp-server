@@ -5,9 +5,10 @@ import os
 from datetime import datetime
 from azure.cosmos import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
+from azure.identity import DefaultAzureCredential
+
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
-
 load_dotenv()
 
 # Initialize FastMCP server
@@ -15,15 +16,14 @@ mcp = FastMCP("remote-db-mcp-server")
 
 # Cosmos DB Configuration
 COSMOS_ENDPOINT = os.getenv("COSMOS_ENDPOINT")
-COSMOS_KEY = os.getenv("COSMOS_KEY")
 DATABASE_NAME = os.getenv("COSMOS_DATABASE", "products-db")
 CONTAINER_NAME = os.getenv("COSMOS_CONTAINER", "products")
 
 # Initialize Cosmos DB client
-if not COSMOS_ENDPOINT or not COSMOS_KEY:
-    raise ValueError("COSMOS_ENDPOINT and COSMOS_KEY environment variables must be set")
+if not COSMOS_ENDPOINT:
+    raise ValueError("COSMOS_ENDPOINT environment variables must be set")
 
-cosmos_client = CosmosClient(COSMOS_ENDPOINT, COSMOS_KEY)
+cosmos_client = CosmosClient(COSMOS_ENDPOINT, credential=DefaultAzureCredential())
 database = cosmos_client.get_database_client(DATABASE_NAME)
 container = database.get_container_client(CONTAINER_NAME)
 
@@ -185,3 +185,7 @@ async def search_products(query: str, limit: int = 10) -> str:
         return f"Error searching products: {str(e)}"
     except ValueError as e:
         return f"Invalid search query: {str(e)}"
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(mcp.run())

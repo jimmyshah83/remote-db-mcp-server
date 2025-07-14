@@ -21,17 +21,19 @@ class MCPTool(BaseTool):
 	"""Wrapper for MCP tools to work with LangChain"""
 
 	def __init__(self, session: ClientSession, tool_name: str, description: str, input_schema: dict):
+		# Store session and tool_name before calling super().__init__
+		self._session = session
+		self._tool_name = tool_name
+		
 		super().__init__(
 			name=tool_name,
 			description=description or f"Tool: {tool_name}",
 			args_schema=input_schema
 		)
-		self.session = session
-		self.tool_name = tool_name
 
 	async def _arun(self, **kwargs) -> str:
 		"""Async execution of the MCP tool"""
-		result = await self.session.call_tool(self.tool_name, kwargs)
+		result = await self._session.call_tool(self._tool_name, kwargs)
 		# Handle the result content properly
 		if hasattr(result, 'content'):
 			if isinstance(result.content, list):
