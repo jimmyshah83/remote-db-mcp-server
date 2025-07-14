@@ -12,6 +12,7 @@ dependencies = [
     "langchain-openai",
     "langgraph",
     "langchain-core",
+    "langchain-mcp-adapters",
 ]
 
 [project.scripts]

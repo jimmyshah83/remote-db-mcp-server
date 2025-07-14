@@ -1,57 +1,30 @@
 """LangChain-powered MCP client with Azure OpenAI and ReAct agent integration."""
 
 import asyncio
-import sys
 import os
-from typing import Optional, List
+import logging
+from typing import List
 from contextlib import AsyncExitStack
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from langchain_openai import AzureChatOpenAI
+from langchain_core.tools import BaseTool, tool
+from langchain_core.messages import AIMessage
 from langgraph.prebuilt import create_react_agent
-from langchain_core.tools import BaseTool
-from langchain_core.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 
 load_dotenv() # load environment variables from .env
 
-class MCPTool(BaseTool):
-	"""Wrapper for MCP tools to work with LangChain"""
-
-	def __init__(self, session: ClientSession, tool_name: str, description: str, input_schema: dict):
-		# Store session and tool_name before calling super().__init__
-		self._session = session
-		self._tool_name = tool_name
-		
-		super().__init__(
-			name=tool_name,
-			description=description or f"Tool: {tool_name}",
-			args_schema=input_schema
-		)
-
-	async def _arun(self, **kwargs) -> str:
-		"""Async execution of the MCP tool"""
-		result = await self._session.call_tool(self._tool_name, kwargs)
-		# Handle the result content properly
-		if hasattr(result, 'content'):
-			if isinstance(result.content, list):
-				# If content is a list, join it or take the first element
-				return str(result.content[0]) if result.content else ""
-			return str(result.content)
-		return str(result)
-
-	def _run(self, **kwargs) -> str:
-		"""Sync execution - not used but required by BaseTool"""
-		raise NotImplementedError("Use async version")
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class MCPClient:
 	"""LangChain-powered MCP client with Azure OpenAI and ReAct agent integration."""
 
 	def __init__(self):
-		# Initialize session and client objects
-		self.session: Optional[ClientSession] = None
+		# Initialize MultiServerMCPClient
+		self.mcp_client = MultiServerMCPClient()
 		self.exit_stack = AsyncExitStack()
 
 		# Initialize Azure OpenAI
@@ -61,8 +34,12 @@ class MCPClient:
 			temperature=0
 		)
 
-		self.tools: List[MCPTool] = []
+		self.tools: List[BaseTool] = []
 		self.agent = None
+		
+		# System instruction for the agent
+		self.SYSTEM_INSTRUCTION = """You are a helpful AI assistant that can interact with various tools and services through the Model Context Protocol (MCP). 
+		Use the available tools to help users with their requests. Always provide clear and helpful responses."""
 
 	async def connect_to_server(self, server_script_path: str):
 		"""Connect to an MCP server
@@ -70,41 +47,48 @@ class MCPClient:
 		Args:
 		    server_script_path: Path to the server script (.py or .js)
 		"""
-		is_python = server_script_path.endswith('.py')
-		is_js = server_script_path.endswith('.js')
-		if not (is_python or is_js):
-			raise ValueError("Server script must be a .py or .js file")
+		# Add the server to the MultiServerMCPClient
+		await self.mcp_client.add_server(server_script_path)
+		
+		# Get the tools from the MCP client
+		self.tools = await self.mcp_client.get_tools()
 
-		command = "python" if is_python else "node"
-		server_params = StdioServerParameters(
-			command=command,
-			args=[server_script_path],
-			env=None
-		)
-
-		stdio_transport = await self.exit_stack.enter_async_context(stdio_client(server_params))
-		self.stdio, self.write = stdio_transport
-		self.session = await self.exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
-
-		await self.session.initialize()
-
-		# List available tools and create LangChain tool wrappers
-		response = await self.session.list_tools()
-		self.tools = []
-
-		for tool in response.tools:
-			mcp_tool = MCPTool(
-				session=self.session,
-				tool_name=tool.name,
-				description=tool.description or f"Tool: {tool.name}",
-				input_schema=tool.inputSchema
-			)
-			self.tools.append(mcp_tool)
-
-		# Create ReAct agent
-		self.agent = create_react_agent(self.llm, self.tools)
+		# Create ReAct agent using the new tooling logic
+		self.agent = await self._create_azure_mcp_agent()
 
 		print("\nConnected to server with tools:", [tool.name for tool in self.tools])
+
+	async def get_tools(self) -> List[BaseTool]:
+		"""Get the available MCP tools"""
+		return self.tools
+
+	async def _create_azure_mcp_agent(self):
+		"""
+		Creates and returns an agent that interacts with Azure MCP server.
+		Returns:
+			azure_mcp_agent: The created agent.
+		"""
+		logger.info("Creating Azure MCP Agent")
+		langchain_mcp_tools = await self.get_tools()
+
+		sync_tools = []
+		for mcp_tool in langchain_mcp_tools:
+			logger.info("Available Langchain MCP tool: %s", mcp_tool.name)
+
+			@tool()
+			async def sync_tool(input_text: str, mcp_tool=mcp_tool):
+				"""Execute the MCP tool with the given input."""
+				result = asyncio.run(mcp_tool.ainvoke({"input": input_text}))
+				return str(result)
+
+			sync_tools.append(sync_tool)
+
+		azure_mcp_agent = create_react_agent(
+			self.llm,
+			tools=sync_tools,
+			prompt=self.SYSTEM_INSTRUCTION,
+		)
+		return azure_mcp_agent
 
 	async def process_query(self, query: str) -> str:
 		"""Process a query using LangChain ReAct agent and available tools"""
@@ -112,13 +96,9 @@ class MCPClient:
 			return "Error: Agent not initialized. Please connect to server first."
 
 		try:
-			# Create the agent state
-			config = {"configurable": {"thread_id": "default"}}
-
-			# Run the agent
+			# Run the agent with the new message format
 			result = await self.agent.ainvoke(
-				{"messages": [HumanMessage(content=query)]},
-				config=config
+				{"messages": [("user", query)]}
 			)
 
 			# Extract the final response
@@ -128,7 +108,14 @@ class MCPClient:
 					# Get the last AI message
 					for message in reversed(messages):
 						if isinstance(message, AIMessage):
-							return message.content
+							content = message.content
+							if isinstance(content, str):
+								return content
+							elif isinstance(content, list):
+								# Handle list content
+								return str(content[0]) if content else ""
+							else:
+								return str(content)
 
 			return "No response generated"
 
@@ -157,14 +144,11 @@ class MCPClient:
 		"""Clean up resources"""
 		await self.exit_stack.aclose()
 
-async def main():
-	if len(sys.argv) < 2:
-		print("Usage: python client.py <path_to_server_script>")
-		sys.exit(1)
-
+async def main(): 
+	"""Main function to run the MCP client"""
 	client = MCPClient()
 	try:
-		await client.connect_to_server(sys.argv[1])
+		await client.connect_to_server("src/server.py") # TODO: make this a command line argument
 		await client.chat_loop()
 	finally:
 		await client.cleanup()
