@@ -3,7 +3,6 @@
 from typing import Optional, List, Dict
 import os
 import logging
-from datetime import datetime
 from azure.cosmos import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 from azure.identity import DefaultAzureCredential
@@ -46,14 +45,15 @@ except Exception as e:
     raise
 
 @mcp.tool()
-async def get_product(product_id: str) -> str:
+async def get_product(product_id: str, partition_key: str) -> str:
     """Get a product by its ID.
 
     Args:
         product_id: The unique identifier of the product
+        partition_key: The partition key of the product
     """
     try:
-        item = container.read_item(item=product_id, partition_key=product_id)
+        item = container.read_item(item=product_id, partition_key=partition_key)
         return f"Product found:\n{str(item)}"
     except CosmosHttpResponseError as e:
         if e.status_code == 404:
@@ -106,88 +106,6 @@ async def list_products(category: Optional[str] = None, limit: int = 10) -> str:
     except ValueError as e:
         logger.error("ValueError listing products: %s", str(e))
         return f"Error listing products: {str(e)}"
-
-@mcp.tool()
-async def create_product(product_data: dict) -> str:
-    """Create a new product in the database.
-
-    Args:
-        product_data: Dictionary containing product information (id, name, category, price, etc.)
-    """
-    try:
-        # Ensure required fields are present
-        required_fields = ['id', 'name', 'category', 'price']
-        for field in required_fields:
-            if field not in product_data:
-                logger.error("Missing required field: %s", field)
-                return f"Missing required field: {field}"
-        if 'createdAt' not in product_data:
-            product_data['createdAt'] = datetime.utcnow().isoformat() + 'Z'
-        if 'updatedAt' not in product_data:
-            product_data['updatedAt'] = product_data['createdAt']
-        
-        container.create_item(body=product_data)
-        logger.info("Successfully created product: %s (ID: %s)", product_data['name'], product_data['id'])
-        return f"Product '{product_data['name']}' created successfully with ID: {product_data['id']}"
-    except CosmosHttpResponseError as e:
-        if e.status_code == 409: 
-            logger.warning("Product with ID %s already exists", product_data.get('id'))
-            return f"Product with ID '{product_data.get('id')}' already exists."
-        logger.error("CosmosHttpResponseError creating product: %s", str(e))
-        return f"Error creating product: {str(e)}"
-    except ValueError as e:
-        logger.error("ValueError creating product: %s", str(e))
-        return f"Invalid product data: {str(e)}"
-
-@mcp.tool()
-async def update_product(product_id: str, updates: dict) -> str:
-    """Update an existing product.
-
-    Args:
-        product_id: The ID of the product to update
-        updates: Dictionary containing the fields to update
-    """
-    try:
-        # Get the existing item
-        existing_item = container.read_item(item=product_id, partition_key=product_id)
-        logger.debug("Retrieved existing product: %s", existing_item.get('name', 'Unknown'))
-        
-        # Update the item
-        for key, value in updates.items():
-            existing_item[key] = value
-        
-        existing_item['updatedAt'] = datetime.utcnow().isoformat() + 'Z'
-        
-        container.replace_item(item=product_id, body=existing_item)
-        logger.info("Successfully updated product: %s (ID: %s)", existing_item.get('name', 'Unknown'), product_id)
-        return f"Product '{existing_item['name']}' updated successfully."
-    except CosmosHttpResponseError as e:
-        if e.status_code == 404:
-            logger.warning("Product with ID %s not found for update", product_id)
-            return f"Product with ID '{product_id}' not found."
-        logger.error("CosmosHttpResponseError updating product %s: %s", product_id, str(e))
-        return f"Error updating product: {str(e)}"
-    except ValueError as e:
-        logger.error("ValueError updating product %s: %s", product_id, str(e))
-        return f"Invalid update data: {str(e)}"
-
-@mcp.tool()
-async def delete_product(product_id: str) -> str:
-    """Delete a product by its ID.
-
-    Args:
-        product_id: The unique identifier of the product to delete
-    """
-    try:
-        container.delete_item(item=product_id, partition_key=product_id)
-        logger.info("Successfully deleted product with ID: %s", product_id)
-        return f"Product with ID '{product_id}' deleted successfully."
-    except CosmosHttpResponseError as e:
-        if e.status_code == 404:
-            logger.warning("Product with ID %s not found for deletion", product_id)
-            return f"Product with ID '{product_id}' not found."
-        logger.error("CosmosHttpResponseError deleting product %s: %s", product_id, str(e))
-        return f"Error deleting product: {str(e)}"
 
 @mcp.tool()
 async def search_products(query: str, limit: int = 10) -> str:
