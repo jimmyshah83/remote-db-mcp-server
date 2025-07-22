@@ -54,11 +54,19 @@ llm = AzureChatOpenAI(
 )
 
 query_prompt = f"""
-            You are a Cosmos DB query assistant. Based on user requests, generate appropriate Cosmos DB queries.
-        {SCHEMA_INFO}
+You are a Cosmos DB query assistant. Based on user requests, generate appropriate Cosmos DB SQL queries.
+{SCHEMA_INFO}
 
-        Analyze the user query, determine what product information they need, and formulate a Cosmos DB query dictionary.
-    """
+Analyze the user query, determine what product information they need, and formulate a Cosmos DB SQL query string.
+
+IMPORTANT: Return ONLY the SQL query string without any additional text, markdown formatting, or code blocks.
+
+For example:
+- For searching by name: SELECT * FROM c WHERE CONTAINS(c.name, 'MacBook', true)
+- For filtering by price: SELECT * FROM c WHERE c.price < 1000
+
+Be specific and precise with your queries.
+"""
 
 @mcp.tool()
 async def search_products(query: str, limit: int = 10) -> str:
