@@ -11,7 +11,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.tools import BaseTool, tool
 from langchain_core.runnables import RunnableConfig
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_mcp_adapters.sessions import StdioConnection
+from langchain_mcp_adapters.sessions import StdioConnection, StreamableHttpConnection
 from langchain_openai import AzureChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
@@ -34,15 +34,19 @@ class MCPClient:
 		# Initialize MultiServerMCPClient with StdioConnection
 		self.mcp_client = MultiServerMCPClient(
 			{
-				"local": StdioConnection(
-					transport="stdio",
-					command="python3",
-					args=["src/server.py"],
-					env=None,
-					cwd=None,
-					encoding="utf-8",
-					encoding_error_handler="strict",
-					session_kwargs=None
+				# "local": StdioConnection(
+				# 	transport="stdio",
+				# 	command="python3",
+				# 	args=["src/server.py"],
+				# 	env=None,
+				# 	cwd=None,
+				# 	encoding="utf-8",
+				# 	encoding_error_handler="strict",
+				# 	session_kwargs=None
+				# ),
+				"remote": StreamableHttpConnection(
+					transport="streamable_http",
+					url="http://localhost:8000/mcp/"
 				)
 			}
 		)
@@ -93,9 +97,9 @@ class MCPClient:
 			logger.info("Available Langchain MCP tool: %s", mcp_tool.name)
 
 			@tool()
-			async def sync_tool(input_text: str, mcp_tool=mcp_tool):
+			async def sync_tool(query: str, mcp_tool=mcp_tool):
 				"""Execute the MCP tool with the given input."""
-				result = await mcp_tool.ainvoke({"input": input_text})
+				result = await mcp_tool.ainvoke({"query": query})
 				return str(result)
 
 			sync_tools.append(sync_tool)

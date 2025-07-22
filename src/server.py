@@ -45,69 +45,6 @@ except Exception as e:
     raise
 
 @mcp.tool()
-async def get_product(product_id: str, partition_key: str) -> str:
-    """Get a product by its ID.
-
-    Args:
-        product_id: The unique identifier of the product
-        partition_key: The partition key of the product
-    """
-    try:
-        item = container.read_item(item=product_id, partition_key=partition_key)
-        return f"Product found:\n{str(item)}"
-    except CosmosHttpResponseError as e:
-        if e.status_code == 404:
-            logger.warning("Product with ID %s not found", product_id)
-            return f"Product with ID '{product_id}' not found."
-        return f"Error retrieving product: {str(e)}"
-    except ValueError as e:
-        logger.error("Invalid product ID %s: %s", product_id, str(e))
-        return f"Invalid product ID: {str(e)}"
-
-@mcp.tool()
-async def list_products(category: Optional[str] = None, limit: int = 10) -> str:
-    """List products with optional filtering by category.
-
-    Args:
-        category: Optional category filter (e.g., 'Electronics', 'Clothing')
-        limit: Maximum number of products to return (default: 10)
-    """
-    try:
-        if category:
-            query = "SELECT * FROM c WHERE c.category = @category"
-            items = list(container.query_items(
-                query=query,
-                parameters=[{"name": "@category", "value": category}],
-                max_item_count=limit,
-                enable_cross_partition_query=True
-            ))
-        else:
-            query = "SELECT * FROM c"
-            items = list(container.query_items(
-                query=query,
-                parameters=None,
-                max_item_count=limit,
-                enable_cross_partition_query=True
-            ))
-        
-        logger.info("Retrieved %s products", len(items))
-        if not items:
-            logger.info("No products found")
-            return "No products found."
-        
-        result = f"Found {len(items)} products:\n"
-        for item in items:
-            result += f"- {item['name']} (ID: {item['id']}, Price: ${item['price']})\n"
-        
-        return result
-    except CosmosHttpResponseError as e:
-        logger.error("CosmosHttpResponseError listing products: %s", str(e))
-        return f"Error listing products: {str(e)}"
-    except ValueError as e:
-        logger.error("ValueError listing products: %s", str(e))
-        return f"Error listing products: {str(e)}"
-
-@mcp.tool()
 async def search_products(query: str, limit: int = 10) -> str:
     """Search products by name or description.
 
@@ -122,19 +59,16 @@ async def search_products(query: str, limit: int = 10) -> str:
         OR CONTAINS(c.description, @query, true)
         """
         parameters: List[Dict[str, object]] = [{"name": "@query", "value": query}]
-        
         items = list(container.query_items(
             query=sql_query,
             parameters=parameters,
             max_item_count=limit,
             enable_cross_partition_query=True
         ))
-        
         logger.info("Search returned %s results for query: '%s'", len(items), query)
         if not items:
             logger.info("No products found matching query: '%s'", query)
             return f"No products found matching '{query}'."
-        
         result = f"Found {len(items)} products matching '{query}':\n"
         for item in items:
             result += f"- {item['name']} (ID: {item['id']}, Price: ${item['price']})\n"
@@ -150,7 +84,7 @@ async def search_products(query: str, limit: int = 10) -> str:
 if __name__ == "__main__":
     logger.info("Starting MCP server...")
     try:
-        mcp.run(transport="stdio")
+        mcp.run(transport="streamable-http")
         logger.info("MCP server started successfully")
     except Exception as e:
         logger.error("Failed to start MCP server: %s", str(e))
