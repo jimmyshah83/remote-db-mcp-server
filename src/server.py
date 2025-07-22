@@ -1,14 +1,17 @@
 """MCP server for Cosmos DB CRUD operations on products database."""
 
-from typing import Optional, List, Dict
+from typing import List, Dict
 import os
 import logging
 from azure.cosmos import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 from azure.identity import DefaultAzureCredential
+from langgraph.prebuilt import create_react_agent
 
+from langchain_openai import AzureChatOpenAI
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
+from src.schema_info import SCHEMA_INFO
 load_dotenv()
 
 # Configure logging
@@ -44,6 +47,19 @@ except Exception as e:
     logger.error("Failed to connect to Cosmos DB: %s", str(e))
     raise
 
+llm = AzureChatOpenAI(
+    azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),
+    api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
+    temperature=0,
+)
+
+query_prompt = f"""
+            You are a Cosmos DB query assistant. Based on user requests, generate appropriate Cosmos DB queries.
+        {SCHEMA_INFO}
+
+        Analyze the user query, determine what product information they need, and formulate a Cosmos DB query dictionary.
+    """
+
 @mcp.tool()
 async def search_products(query: str, limit: int = 10) -> str:
     """Search products by name or description.
@@ -53,11 +69,13 @@ async def search_products(query: str, limit: int = 10) -> str:
         limit: Maximum number of results to return (default: 10)
     """
     try:
-        sql_query = """
-        SELECT * FROM c 
-        WHERE CONTAINS(c.name, @query, true) 
-        OR CONTAINS(c.description, @query, true)
-        """
+        agent = create_react_agent(
+            llm,
+            tools=[],
+            prompt=query_prompt,
+        )
+        result = await agent.ainvoke({"messages": [("user", query)]})
+        sql_query = result["messages"][-1].content
         parameters: List[Dict[str, object]] = [{"name": "@query", "value": query}]
         items = list(container.query_items(
             query=sql_query,

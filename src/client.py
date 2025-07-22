@@ -11,7 +11,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.tools import BaseTool, tool
 from langchain_core.runnables import RunnableConfig
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_mcp_adapters.sessions import StdioConnection, StreamableHttpConnection
+from langchain_mcp_adapters.sessions import StreamableHttpConnection
 from langchain_openai import AzureChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
@@ -21,8 +21,8 @@ load_dotenv()
 memory = MemorySaver()
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+	level=logging.INFO,
+	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 logger = logging.getLogger("cosmos_mcp_client")
@@ -61,12 +61,13 @@ class MCPClient:
 
 		self.tools: List[BaseTool] = []
 		self.agent = None
-		
+
 		# System instruction for the agent
-		self.system_instruction = """You are a helpful AI assistant that can interact with various tools and services. Use the available tools to help users with their requests. Always provide clear and helpful responses.
-		You have the following tools available:
-		{tools}
-		"""
+		self.system_instruction = """You are a helpful AI assistant that help people search for products in a database. 
+		                          Use ONLY the following tools to help users with their requests.
+		                          {tools}
+		                          If you can't find the product, ask clarifying questions to the user.
+		                          """
 
 	async def connect_to_server(self):
 		"""Connect to the MCP server
@@ -152,18 +153,9 @@ class MCPClient:
 		print("Type your queries or 'quit' to exit.")
 
 		while True:
-			try:
-				query = input("\nQuery: ").strip()
-
-				if query.lower() == 'quit':
-					break
-
-				response = await self.process_query(query)
-				print("\n" + response)
-
-			except Exception as e:
-				print(f"\nError: {str(e)}")
-
+			query = input("\nQuery: ")
+			response = await self.process_query(query)
+			print("\n" + response)
 	async def cleanup(self):
 		"""Clean up resources"""
 		await self.exit_stack.aclose()
@@ -174,7 +166,7 @@ async def main():
 	try:
 		await client.connect_to_server()
 		await client.chat_loop()
-	finally:	
+	finally: 
 		await client.cleanup()
 
 if __name__ == "__main__":
