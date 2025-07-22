@@ -46,7 +46,7 @@ class MCPClient:
 				# ),
 				"remote": StreamableHttpConnection(
 					transport="streamable_http",
-					url="http://localhost:8000/mcp/"
+					url="https://cosmossearchmcp-aca.calmcoast-50b9e43c.eastus.azurecontainerapps.io/mcp/"
 				)
 			}
 		)

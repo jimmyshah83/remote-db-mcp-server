@@ -11,7 +11,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain_openai import AzureChatOpenAI
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
-from src.schema_info import SCHEMA_INFO
+from schema_info import SCHEMA_INFO
 load_dotenv()
 
 # Configure logging
