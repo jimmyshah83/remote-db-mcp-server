@@ -85,3 +85,79 @@ await client.connect_to_server("path/to/server.py")
 response = await client.process_query("Show me all products in the database")
 print(response)
 ```
+
+## Deploying to Azure Container Apps
+
+You can deploy the MCP server (`src/server.py`) as a standalone application to Azure Container Apps. Follow these steps:
+
+### 1. Create a Dockerfile
+
+Add a `Dockerfile` to your project root:
+
+```dockerfile
+FROM mcr.microsoft.com/azure-functions/python:4-python3.11
+WORKDIR /app
+COPY pyproject.toml ./
+RUN pip install --upgrade pip && pip install poetry && poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
+COPY . .
+EXPOSE 8000
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "src/server.py"]
+```
+
+If you use `requirements.txt` instead of Poetry, adjust the Dockerfile accordingly.
+
+### 2. Build and Push the Docker Image
+
+Replace `<your-registry>` and `<your-image-name>` as needed:
+
+```bash
+# Log in to Azure Container Registry (ACR) or Docker Hub
+az acr login --name <your-registry>
+# or
+docker login
+
+# Build the image
+docker build -t <your-registry>/<your-image-name>:latest .
+
+# Push the image
+docker push <your-registry>/<your-image-name>:latest
+```
+
+### 3. Deploy to Azure Container Apps
+
+```bash
+# Create a resource group (if needed)
+az group create --name myResourceGroup --location eastus
+
+# Create a Container App environment
+az containerapp env create --name my-environment --resource-group myResourceGroup --location eastus
+
+# Create the Container App
+az containerapp create \
+  --name my-mcp-server \
+  --resource-group myResourceGroup \
+  --environment my-environment \
+  --image <your-registry>/<your-image-name>:latest \
+  --target-port 8000 \
+  --ingress 'external' \
+  --env-vars COSMOS_ENDPOINT=<your-cosmos-endpoint> \
+               COSMOS_DATABASE=<your-db-name> \
+               COSMOS_CONTAINER=<your-container-name> \
+               AZURE_OPENAI_DEPLOYMENT_NAME=<your-openai-deployment> \
+               AZURE_OPENAI_API_VERSION=<your-openai-api-version>
+```
+
+### 4. (Optional) Set up Azure Managed Identity
+
+If your code uses `DefaultAzureCredential`, assign a managed identity to your Container App and grant it access to Cosmos DB and Azure OpenAI.
+
+### 5. Verify Deployment
+
+Get the external URL:
+
+```bash
+az containerapp show --name my-mcp-server --resource-group myResourceGroup --query properties.configuration.ingress.fqdn
+```
+
+Visit the URL to test your deployed MCP server.
