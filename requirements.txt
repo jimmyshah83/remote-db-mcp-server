@@ -1,0 +1,13 @@
+azure-cosmos
+azure-identity
+python-dotenv
+httpx
+mcp
+fastmcp
+langchain-openai
+langgraph
+langchain-core
+langchain-mcp-adapters
+debugpy
+fastapi
+uvicorn[standard] 

@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize FastMCP server
-mcp = FastMCP("remote-db-mcp-server")
+mcp = FastMCP("remote-db-mcp-server", host="0.0.0.0", port=8000)
 
 # Cosmos DB Configuration
 COSMOS_ENDPOINT = os.getenv("COSMOS_ENDPOINT")

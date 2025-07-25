@@ -1,15 +1,15 @@
 # Use an official Python runtime as a parent image
-FROM mcr.microsoft.com/azure-functions/python:4-python3.11
+FROM python:3.11-slim
 
 # Set the working directory
-WORKDIR /app/src
+WORKDIR /app
 
 # Copy requirements and install dependencies
-COPY pyproject.toml ./
-RUN pip install --upgrade pip && pip install uv && uv pip compile pyproject.toml -o requirements.txt && uv pip install --system -r requirements.txt
+COPY requirements.txt ./
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copy the rest of the code
-COPY src/ .
+COPY src/ ./src/
 
 # Expose the port your server runs on (adjust if needed)
 EXPOSE 8000
@@ -19,4 +19,4 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/src
 
 # Start the server
-CMD ["python3", "server.py"]
+CMD ["python3", "src/server.py"]

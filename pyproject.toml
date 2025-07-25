@@ -9,6 +9,7 @@ dependencies = [
     "python-dotenv",
     "httpx",
     "mcp",
+    "fastmcp",
     "langchain-openai",
     "langgraph",
     "langchain-core",
