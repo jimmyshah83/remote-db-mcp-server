@@ -27,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize FastMCP server
-mcp = FastMCP("remote-db-mcp-server", host="0.0.0.0", port=8000, path="/mcp/")
+mcp = FastMCP("remote-db-mcp-server", host="0.0.0.0", port=8000)
 
 # Cosmos DB Configuration
 COSMOS_ENDPOINT = os.getenv("COSMOS_ENDPOINT")
@@ -121,9 +121,9 @@ async def health_check():
         return {"status": "unhealthy", "error": str(e)}, 503
 
 if __name__ == "__main__":
-    logger.info("Starting MCP server on port %s...", PORT)
+    logger.info("Starting MCP server")
     try:
-        mcp.run(transport="streamable-http")
+        mcp.run(transport="streamable-http", host="0.0.0.0", port=8000, path="/mcptest")
         logger.info("MCP server started successfully")
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("Failed to start MCP server: %s", str(e))

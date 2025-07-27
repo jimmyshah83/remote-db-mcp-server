@@ -86,84 +86,248 @@ response = await client.process_query("Show me all products in the database")
 print(response)
 ```
 
-## Deploying to Azure Container Apps
+## Deploying to Azure
 
-You can deploy the MCP server (`src/server.py`) as a standalone application to Azure Container Apps. Follow these steps:
+You can deploy the MCP server to Azure using either Azure Container Apps (recommended) or Azure Developer CLI (azd). Both approaches provide scalable, managed hosting for your application.
 
-### 1. Create a Dockerfile
+### Option 1: Quick Deployment with Azure Developer CLI (Recommended)
 
-Add a `Dockerfile` to your project root:
+The fastest way to deploy is using Azure Developer CLI, which handles infrastructure provisioning and deployment automatically.
 
-```dockerfile
-FROM mcr.microsoft.com/azure-functions/python:4-python3.11
-WORKDIR /app
-COPY pyproject.toml ./
-RUN pip install --upgrade pip && pip install poetry && poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
-COPY . .
-EXPOSE 8000
-ENV PYTHONUNBUFFERED=1
-CMD ["python", "src/server.py"]
-```
+#### Prerequisites
 
-If you use `requirements.txt` instead of Poetry, adjust the Dockerfile accordingly.
+1. Install [Azure Developer CLI (azd)](https://aka.ms/azure-dev/install)
+2. Install [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli)
+3. Have an Azure subscription
 
-### 2. Build and Push the Docker Image
+#### Deployment Steps
 
-Replace `<your-registry>` and `<your-image-name>` as needed:
+1. **Initialize azd project:**
 
-```bash
-# Log in to Azure Container Registry (ACR) or Docker Hub
-az acr login --name <your-registry>
-# or
-docker login
+   ```bash
+   azd init --template minimal
+   ```
 
-# Build the image
-docker build -t <your-registry>/<your-image-name>:latest .
+2. **Configure environment variables:**
 
-# Push the image
-docker push <your-registry>/<your-image-name>:latest
+   Copy your `.env` file values to azd environment:
 
-# run locally
-docker run -p 8000:8000 \
-  -v $(pwd)/.env:/app/.env \
-  remote-db-mcp-server
-```
+   ```bash
+   azd env set AZURE_OPENAI_DEPLOYMENT_NAME "<your-deployment-name>"
+   azd env set AZURE_OPENAI_ENDPOINT "<your-openai-endpoint>"
+   azd env set COSMOS_DB_ENDPOINT "<your-cosmos-endpoint>"
+   azd env set COSMOS_DB_DATABASE "<your-database-name>"
+   azd env set COSMOS_DB_CONTAINER "<your-container-name>"
+   ```
 
+3. **Deploy to Azure:**
 
-### 3. Deploy to Azure Container Apps
+   ```bash
+   azd up
+   ```
 
-```bash
-# Create a resource group (if needed)
-az group create --name myResourceGroup --location eastus
+   This command will:
+   - Provision Azure resources (Container Apps, Container Registry, etc.)
+   - Build and push your Docker image
+   - Deploy your application
+   - Configure managed identity and RBAC permissions
 
-# Create a Container App environment
-az containerapp env create --name my-environment --resource-group myResourceGroup --location eastus
+### Option 2: Manual Deployment with Azure Container Apps
 
-# Create the Container App (Make sure to add your environment variables)
-az containerapp create \
-  --name my-mcp-server \
-  --resource-group myResourceGroup \
-  --environment my-environment \
-  --image <your-registry>/<your-image-name>:latest \
-  --target-port 8000 \
-  --ingress 'external' \
-  --env-vars COSMOS_ENDPOINT=<your-cosmos-endpoint> \
-               COSMOS_DATABASE=<your-db-name> \
-               COSMOS_CONTAINER=<your-container-name> \
-               AZURE_OPENAI_DEPLOYMENT_NAME=<your-openai-deployment> \
-               AZURE_OPENAI_API_VERSION=<your-openai-api-version>
-```
+For more control over the deployment process, you can manually deploy using Azure CLI.
 
-### 4. (Optional) Set up Azure Managed Identity
+#### Setup Prerequisites
 
-If your code uses `DefaultAzureCredential`, assign a managed identity to your Container App and grant it access to Cosmos DB and Azure OpenAI.
+1. Azure CLI installed and configured
+2. Docker installed locally
+3. An Azure Container Registry (ACR) or Docker Hub account
 
-### 5. Verify Deployment
+#### Step 1: Prepare Your Environment
 
-Get the external URL:
+1. **Login to Azure:**
 
-```bash
-az containerapp show --name my-mcp-server --resource-group myResourceGroup --query properties.configuration.ingress.fqdn
-```
+   ```bash
+   az login
+   az account set --subscription "<your-subscription-id>"
+   ```
 
-Visit the URL to test your deployed MCP server.
+2. **Set deployment variables:**
+
+   ```bash
+   RESOURCE_GROUP="rg-mcp-server"
+   LOCATION="eastus"
+   ACR_NAME="mcpserveracr$(date +%s)"
+   CONTAINER_APP_ENV="mcp-server-env"
+   CONTAINER_APP_NAME="mcp-server"
+   IMAGE_NAME="remote-db-mcp-server"
+   ```
+
+#### Step 2: Create Azure Resources
+
+1. **Create resource group:**
+
+   ```bash
+   az group create --name $RESOURCE_GROUP --location $LOCATION
+   ```
+
+2. **Create Azure Container Registry:**
+
+   ```bash
+   az acr create \
+     --resource-group $RESOURCE_GROUP \
+     --name $ACR_NAME \
+     --sku Basic \
+     --admin-enabled true
+   ```
+
+3. **Create Container Apps environment:**
+
+   ```bash
+   az containerapp env create \
+     --name $CONTAINER_APP_ENV \
+     --resource-group $RESOURCE_GROUP \
+     --location $LOCATION
+   ```
+
+#### Step 3: Build and Push Container Image
+
+1. **Login to Azure Container Registry:**
+
+   ```bash
+   az acr login --name $ACR_NAME
+   ```
+
+2. **Build and push Docker image:**
+
+   ```bash
+   # Build the image
+   docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:latest .
+   
+   # Push to ACR
+   docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:latest
+   ```
+
+#### Step 4: Deploy Container App
+
+1. **Create the Container App:**
+
+   ```bash
+   az containerapp create \
+     --name $CONTAINER_APP_NAME \
+     --resource-group $RESOURCE_GROUP \
+     --environment $CONTAINER_APP_ENV \
+     --image $ACR_NAME.azurecr.io/$IMAGE_NAME:latest \
+     --target-port 8000 \
+     --ingress 'external' \
+     --registry-server $ACR_NAME.azurecr.io \
+     --min-replicas 1 \
+     --max-replicas 3 \
+     --cpu 0.25 \
+     --memory 0.5Gi \
+     --env-vars \
+       AZURE_OPENAI_DEPLOYMENT_NAME="<your-deployment-name>" \
+       AZURE_OPENAI_ENDPOINT="<your-openai-endpoint>" \
+       AZURE_OPENAI_API_VERSION="2024-02-15-preview" \
+       COSMOS_DB_ENDPOINT="<your-cosmos-endpoint>" \
+       COSMOS_DB_DATABASE="<your-database-name>" \
+       COSMOS_DB_CONTAINER="<your-container-name>"
+   ```
+
+#### Step 5: Configure Managed Identity (Recommended)
+
+For production deployments, use managed identity instead of API keys:
+
+1. **Enable system-assigned managed identity:**
+
+   ```bash
+   az containerapp identity assign \
+     --name $CONTAINER_APP_NAME \
+     --resource-group $RESOURCE_GROUP \
+     --system-assigned
+   ```
+
+2. **Grant permissions to Azure OpenAI:**
+
+   ```bash
+   # Get the managed identity principal ID
+   PRINCIPAL_ID=$(az containerapp identity show \
+     --name $CONTAINER_APP_NAME \
+     --resource-group $RESOURCE_GROUP \
+     --query principalId \
+     --output tsv)
+   
+   # Assign Cognitive Services OpenAI User role
+   az role assignment create \
+     --role "Cognitive Services OpenAI User" \
+     --assignee $PRINCIPAL_ID \
+     --scope "<your-openai-resource-id>"
+   ```
+
+3. **Grant permissions to Cosmos DB:**
+
+   ```bash
+   # Assign Cosmos DB Built-in Data Contributor role
+   az role assignment create \
+     --role "Cosmos DB Built-in Data Contributor" \
+     --assignee $PRINCIPAL_ID \
+     --scope "<your-cosmos-db-resource-id>"
+   ```
+
+4. **Update Container App to remove API keys:**
+
+   ```bash
+   az containerapp update \
+     --name $CONTAINER_APP_NAME \
+     --resource-group $RESOURCE_GROUP \
+     --remove-env-vars AZURE_OPENAI_API_KEY COSMOS_DB_KEY
+   ```
+
+#### Step 6: Verify Deployment
+
+1. **Get the application URL:**
+
+   ```bash
+   FQDN=$(az containerapp show \
+     --name $CONTAINER_APP_NAME \
+     --resource-group $RESOURCE_GROUP \
+     --query properties.configuration.ingress.fqdn \
+     --output tsv)
+   
+   echo "Application URL: https://$FQDN"
+   ```
+
+2. **Check application health:**
+
+   ```bash
+   curl -f https://$FQDN/health
+   ```
+
+3. **View application logs:**
+
+   ```bash
+   az containerapp logs show \
+     --name $CONTAINER_APP_NAME \
+     --resource-group $RESOURCE_GROUP \
+     --follow
+   ```
+
+### Security Best Practices
+
+- **Use Managed Identity**: Always prefer managed identity over API keys for authentication
+- **Secure Secrets**: Store sensitive configuration in Azure Key Vault
+- **Network Security**: Consider using private endpoints for database connections
+- **Resource Isolation**: Deploy to a dedicated resource group for easier management
+- **Monitoring**: Enable Application Insights for monitoring and diagnostics
+
+### Troubleshooting
+
+- **Container App not starting**: Check logs using `az containerapp logs show`
+- **Authentication issues**: Verify managed identity permissions and role assignments
+- **Network connectivity**: Ensure firewall rules allow Container Apps to access resources
+- **Resource limits**: Monitor CPU and memory usage, adjust scaling parameters if needed
+
+### Cost Optimization
+
+- **Right-size resources**: Start with minimal CPU/memory and scale based on usage
+- **Auto-scaling**: Configure appropriate min/max replicas based on expected load
+- **Resource cleanup**: Use `az group delete` to remove all resources when no longer needed
