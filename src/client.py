@@ -46,7 +46,7 @@ class MCPClient:
 				# ),
 				"remote": StreamableHttpConnection(
 					transport="streamable_http",
-					url="http://0.0.0.0:8000/mcp/"
+					url="https://remote-db-mcp-server.calmcoast-50b9e43c.eastus.azurecontainerapps.io/mcp",
 				)
 			}
 		)

@@ -15,18 +15,19 @@ from schema_info import SCHEMA_INFO
 load_dotenv()
 
 # Configure logging
+LOG_DIR = "/app/logs" if os.path.exists("/app/logs") else "."
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('server.log')
+        logging.FileHandler(f'{LOG_DIR}/server.log')
     ]
 )
 logger = logging.getLogger(__name__)
 
 # Initialize FastMCP server
-mcp = FastMCP("remote-db-mcp-server", host="0.0.0.0", port=8000)
+mcp = FastMCP("remote-db-mcp-server", host="0.0.0.0", port=8000, path="/mcp/")
 
 # Cosmos DB Configuration
 COSMOS_ENDPOINT = os.getenv("COSMOS_ENDPOINT")
@@ -107,11 +108,23 @@ async def search_products(query: str, limit: int = 10) -> str:
         logger.error("ValueError searching products: %s", str(e))
         return f"Invalid search query: {str(e)}"
 
+# Add health check endpoint
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check():
+    """Health check endpoint for Azure Container Apps"""
+    try:
+        # Simple check to verify Cosmos DB connection
+        database.read()
+        return {"status": "healthy", "cosmos_db": "connected"}
+    except CosmosHttpResponseError as e:
+        logger.error("Health check failed: %s", e)
+        return {"status": "unhealthy", "error": str(e)}, 503
+
 if __name__ == "__main__":
-    logger.info("Starting MCP server...")
+    logger.info("Starting MCP server on port %s...", PORT)
     try:
         mcp.run(transport="streamable-http")
         logger.info("MCP server started successfully")
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error("Failed to start MCP server: %s", str(e))
         raise

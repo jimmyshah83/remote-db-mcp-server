@@ -122,7 +122,13 @@ docker build -t <your-registry>/<your-image-name>:latest .
 
 # Push the image
 docker push <your-registry>/<your-image-name>:latest
+
+# run locally
+docker run -p 8000:8000 \
+  -v $(pwd)/.env:/app/.env \
+  remote-db-mcp-server
 ```
+
 
 ### 3. Deploy to Azure Container Apps
 
@@ -133,7 +139,7 @@ az group create --name myResourceGroup --location eastus
 # Create a Container App environment
 az containerapp env create --name my-environment --resource-group myResourceGroup --location eastus
 
-# Create the Container App
+# Create the Container App (Make sure to add your environment variables)
 az containerapp create \
   --name my-mcp-server \
   --resource-group myResourceGroup \
